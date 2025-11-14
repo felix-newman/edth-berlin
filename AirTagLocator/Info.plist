@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to display AR content and locate AirTags.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>This app uses local network to communicate with nearby AirTags.</string>
+	<key>NSNearbyInteractionUsageDescription</key>
+	<string>This app uses Nearby Interaction to locate AirTags.</string>
+	<key>NSNearbyInteractionAllowOnceUsageDescription</key>
+	<string>Allow this app to interact with nearby AirTags.</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arkit</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>nearby-interaction</string>
+	</array>
+</dict>
+</plist>
+
