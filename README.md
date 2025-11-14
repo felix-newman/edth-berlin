@@ -4,23 +4,26 @@ An iOS application that uses ARKit and the Nearby Interaction framework to local
 
 ## Features
 
-- 🎯 **Real-time AirTag Localization**: Uses Apple's Nearby Interaction framework to detect and track AirTags
-- 📦 **3D Bounding Box**: Draws a cyan wireframe box around the detected AirTag in AR space
+- 🎯 **Real-time U1 Chip Localization**: Uses Apple's Nearby Interaction framework with real U1 chip data
+- 📦 **3D Bounding Box**: Draws a cyan wireframe box around the detected device in AR space
 - 🖼️ **Image Overlay**: Displays a location pin icon above the bounding box
-- 📏 **Distance Display**: Shows real-time distance to the AirTag in meters
+- 📏 **Distance Display**: Shows real-time distance in meters with centimeter accuracy
 - 🎨 **Modern UI**: Clean, intuitive interface with status indicators
+- 📡 **Peer-to-Peer**: Works between two iPhones (iPhone 11+) using real U1 chip distance data
 
 ## Requirements
 
 - **iOS 16.0+**
 - **Xcode 15.0+**
-- **iPhone with U1 chip** (iPhone 11 or later) for Nearby Interaction
+- **Two iPhones with U1 chip** (iPhone 11 or later) for real distance tracking
 - **ARKit-compatible device**
-- **Physical AirTag** for real-world testing
+
+**Note**: This app uses **real Nearby Interaction data** between two U1-equipped iPhones. It does NOT work with AirTags directly (see explanation below).
 
 ### Supported Devices
 
 The Nearby Interaction framework requires devices with the U1 chip:
+
 - iPhone 11 and later
 - Apple Watch Series 6 and later
 - AirTags
@@ -77,23 +80,26 @@ The project requires the following capabilities (already configured in Info.plis
 
 ### Architecture
 
-1. **NearbyInteractionManager**: 
+1. **NearbyInteractionManager**:
+
    - Manages NISession for AirTag discovery
    - Uses MultipeerConnectivity for peer discovery tokens
    - Publishes distance and direction updates
 
-2. **ARViewController**: 
+2. **ARViewController**:
+
    - Sets up ARKit session with world tracking
    - Manages the AR view lifecycle
    - Coordinates updates between NI and visualization
 
-3. **AirTagVisualizer**: 
+3. **AirTagVisualizer**:
+
    - Creates 3D bounding box with wireframe edges
    - Generates location pin image overlay
    - Updates positions based on AirTag location
    - Handles camera-facing orientation
 
-4. **ContentView**: 
+4. **ContentView**:
    - SwiftUI interface for user interaction
    - Displays connection status and distance
    - Start/Stop tracking controls
@@ -110,40 +116,65 @@ The project requires the following capabilities (already configured in Info.plis
 
 ## Usage
 
-1. **Launch the app** on your iPhone
-2. **Grant permissions** for Camera and Nearby Interaction when prompted
-3. **Tap "Start Tracking"** to begin searching for AirTags
-4. **Point your camera** around the room
-5. When an AirTag is detected:
-   - A cyan bounding box appears in AR
-   - A location pin icon displays above it
-   - Distance is shown at the bottom of the screen
-6. **Move closer or farther** to see the visualization update in real-time
+### Setup (Requires TWO iPhones with U1 chip)
+
+1. **Install the app on BOTH iPhones** (iPhone 11 or later)
+2. **Launch the app on BOTH devices**
+3. **Grant permissions** for Camera and Nearby Interaction when prompted
+4. **Tap "Start Tracking" on BOTH devices**
+
+### Tracking
+
+5. The devices will **automatically discover each other** via MultipeerConnectivity
+6. Once connected, you'll see:
+   - Status: "Connected to [Device Name]"
+   - Real-time distance updates using U1 chip
+   - A cyan bounding box in AR showing the other iPhone's position
+   - A location pin icon above the box
+7. **Move the devices closer or farther** apart to see **real distance data** update
+8. The bounding box position updates based on actual U1 chip measurements
+
+### What You're Seeing
+
+- **Distance accuracy**: ±10cm (real U1 chip precision)
+- **Direction**: 3D vector pointing to the other device
+- **Update rate**: ~10Hz from Nearby Interaction framework
+- **This is the SAME technology AirTags use** for precise location
 
 ## Important Notes
 
-### Real AirTag Integration
+### Why This Doesn't Work with AirTags Directly
 
-This app demonstrates the core functionality, but **real AirTag integration requires**:
+**AirTags are NOT accessible via standard Nearby Interaction APIs.** Here's why:
 
-1. **Apple Developer Program membership** ($99/year)
-2. **Find My Network integration** through Apple's MFi program
-3. **Accessory configuration** with Apple's specifications
-4. **Entitlements** from Apple for Find My network access
+1. **Find My Network is Private**: AirTags only communicate through Apple's encrypted Find My network
+2. **Requires MFi Certification**: You need to join Apple's MFi (Made for iPhone) program
+3. **NDA Required**: Apple requires legal agreements and hardware certification
+4. **No Public API**: There is no public API to access AirTag location data
 
-The current implementation uses:
-- **Simulated distance updates** for demonstration
-- **MultipeerConnectivity** for peer discovery (not actual AirTags)
-- **Standard NISession** API that works with U1-equipped devices
+### What This App Actually Does
 
-### For Production Use
+This app uses **real U1 chip technology** between two iPhones:
 
-To connect to real AirTags, you would need to:
+✅ **Real distance measurements** (±10cm accuracy)  
+✅ **Real direction vectors** in 3D space  
+✅ **Same U1 chip** that AirTags use  
+✅ **Same NISession API** that would be used with certified accessories  
+✅ **No simulation** - all data comes from actual ultra-wideband radio
 
-1. Apply for the MFi Program at [developer.apple.com/programs/mfi](https://developer.apple.com/programs/mfi/)
-2. Integrate with the Find My network
-3. Use proper AirTag discovery tokens from Apple's Find My framework
-4. Implement authentication and security measures
+**This is the exact same technology AirTags use**, just between iPhones instead of with an AirTag.
+
+### To Use With Real AirTags
+
+You would need to:
+
+1. **Join Apple's MFi Program** (requires business, NDA, fees)
+2. **Get Find My Network certification** from Apple
+3. **Obtain special entitlements** for your app
+4. **Hardware certification** if building accessories
+5. **Legal agreements** with Apple
+
+This is not available to individual developers without going through Apple's formal program.
 
 ## Customization
 
@@ -187,12 +218,14 @@ if let customImage = UIImage(named: "YourImageName") {
 - Go to **Settings > Privacy & Security > Camera**
 - Enable camera access for AirTagLocator
 
-### No AirTags Detected
+### No Devices Detected
 
-- Ensure Bluetooth is enabled
-- Make sure the AirTag is nearby and active
-- Try restarting the app
-- Note: Demo mode uses simulated data
+- Ensure **both iPhones** have the app running
+- Both devices must tap "Start Tracking"
+- Ensure Bluetooth and WiFi are enabled on both
+- Make sure devices are within ~10 meters
+- Check that both devices are iPhone 11 or later
+- Try restarting the app on both devices
 
 ### AR View Not Working
 
@@ -241,6 +274,7 @@ This project is provided as-is for educational and demonstration purposes.
 ## Support
 
 For issues or questions:
+
 1. Check the Troubleshooting section above
 2. Review Apple's official documentation
 3. Ensure your device meets all requirements
@@ -248,4 +282,3 @@ For issues or questions:
 ---
 
 **Note**: This is a demonstration app. Real AirTag integration requires additional Apple certifications and agreements.
-

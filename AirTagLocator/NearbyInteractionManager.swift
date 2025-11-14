@@ -45,17 +45,10 @@ class NearbyInteractionManager: NSObject, ObservableObject {
             return
         }
         
-        statusMessage = "Searching for AirTags..."
+        statusMessage = "Searching for nearby devices..."
         
-        // Setup multipeer connectivity for demo purposes
-        // Note: Real AirTag integration requires Apple's Find My network integration
+        // Setup multipeer connectivity to discover other iPhones
         setupMultipeerConnectivity()
-        
-        // For demonstration, we'll simulate AirTag detection
-        // In a real app, you would integrate with Apple's Find My network
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            self?.simulateAirTagConnection()
-        }
     }
     
     func stopSession() {
@@ -82,35 +75,6 @@ class NearbyInteractionManager: NSObject, ObservableObject {
         mcBrowser?.delegate = self
         mcBrowser?.startBrowsingForPeers()
     }
-    
-    private func simulateAirTagConnection() {
-        // This simulates finding an AirTag
-        // In production, you'd use real NISession with actual AirTag tokens
-        isConnected = true
-        statusMessage = "AirTag detected"
-        
-        // Simulate distance updates
-        startSimulatingDistance()
-    }
-    
-    private func startSimulatingDistance() {
-        // Simulate varying distance for demonstration
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
-            guard let self = self, self.isConnected else {
-                timer.invalidate()
-                return
-            }
-            
-            // Simulate distance between 0.5 and 5 meters
-            let baseDistance: Float = 2.0
-            let variation = Float.random(in: -0.5...0.5)
-            self.distance = baseDistance + variation
-            
-            // Simulate direction (in front of user)
-            let angle = Float.random(in: -0.2...0.2)
-            self.direction = simd_float3(sin(angle), 0, -cos(angle))
-        }
-    }
 }
 
 // MARK: - NISessionDelegate
@@ -118,44 +82,59 @@ extension NearbyInteractionManager: NISessionDelegate {
     func session(_ session: NISession, didUpdate nearbyObjects: [NINearbyObject]) {
         guard let object = nearbyObjects.first else { return }
         
-        if let distance = object.distance {
-            self.distance = distance
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            if let distance = object.distance {
+                self.distance = distance
+            }
+            
+            if let direction = object.direction {
+                self.direction = direction
+            }
+            
+            self.isConnected = true
+            self.statusMessage = "Tracking device"
         }
-        
-        if let direction = object.direction {
-            self.direction = direction
-        }
-        
-        isConnected = true
-        statusMessage = "Tracking AirTag"
     }
     
     func session(_ session: NISession, didRemove nearbyObjects: [NINearbyObject], reason: NINearbyObject.RemovalReason) {
-        distance = nil
-        direction = nil
-        
-        switch reason {
-        case .timeout:
-            statusMessage = "Lost connection (timeout)"
-        case .peerEnded:
-            statusMessage = "Peer ended session"
-        @unknown default:
-            statusMessage = "Lost connection"
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            self.distance = nil
+            self.direction = nil
+            
+            switch reason {
+            case .timeout:
+                self.statusMessage = "Lost connection (timeout)"
+            case .peerEnded:
+                self.statusMessage = "Peer ended session"
+            @unknown default:
+                self.statusMessage = "Lost connection"
+            }
         }
     }
     
     func sessionWasSuspended(_ session: NISession) {
-        statusMessage = "Session suspended"
+        DispatchQueue.main.async { [weak self] in
+            self?.statusMessage = "Session suspended"
+        }
     }
     
     func sessionSuspensionEnded(_ session: NISession) {
-        statusMessage = "Session resumed"
+        DispatchQueue.main.async { [weak self] in
+            self?.statusMessage = "Session resumed"
+        }
     }
     
     func session(_ session: NISession, didInvalidateWith error: Error) {
-        statusMessage = "Session error"
-        errorMessage = error.localizedDescription
-        isConnected = false
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.statusMessage = "Session error"
+            self.errorMessage = error.localizedDescription
+            self.isConnected = false
+        }
     }
 }
 
@@ -164,24 +143,46 @@ extension NearbyInteractionManager: MCSessionDelegate {
     func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
         switch state {
         case .connected:
-            print("Connected to peer: \(peerID.displayName)")
+            print("✅ Connected to peer: \(peerID.displayName)")
+            DispatchQueue.main.async { [weak self] in
+                self?.statusMessage = "Connected to \(peerID.displayName)"
+            }
+            
+            // Send our discovery token to the peer
             if let token = peerDiscoveryToken,
                let data = try? NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true) {
                 try? session.send(data, toPeers: [peerID], with: .reliable)
             }
+            
         case .connecting:
-            print("Connecting to peer: \(peerID.displayName)")
+            print("🔄 Connecting to peer: \(peerID.displayName)")
+            DispatchQueue.main.async { [weak self] in
+                self?.statusMessage = "Connecting to \(peerID.displayName)..."
+            }
+            
         case .notConnected:
-            print("Not connected to peer: \(peerID.displayName)")
+            print("❌ Not connected to peer: \(peerID.displayName)")
+            DispatchQueue.main.async { [weak self] in
+                self?.statusMessage = "Disconnected from \(peerID.displayName)"
+                self?.isConnected = false
+            }
+            
         @unknown default:
             break
         }
     }
     
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
+        // Received discovery token from peer - start NISession
         if let token = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NIDiscoveryToken.self, from: data) {
+            print("📡 Received discovery token from \(peerID.displayName), starting NISession")
+            
             let config = NINearbyPeerConfiguration(peerToken: token)
             niSession?.run(config)
+            
+            DispatchQueue.main.async { [weak self] in
+                self?.statusMessage = "Starting distance tracking..."
+            }
         }
     }
     
